@@ -86,7 +86,7 @@ def parse_option():
         "--encoding_dim", type=int, default=256, help="lstm encoding dimension"
     )
     parser.add_argument(
-        "--weight_decay", type=float, default=0.99, help="weight decay"
+        "--lr_decay", type=float, default=0.99, help="lr decay"
     )
     args = parser.parse_args()
     return args
@@ -134,6 +134,8 @@ def main():
     elif args.encoder == 'bilstm_max':
         encoder = BidirectionalLSTMEncoder(pooling_type='max', encoding_lstm_dim=args.encoding_dim, batch_size=args.batch_size)
         nli_model = SNLIClassifier(encoder=encoder, embedding_dim=2*args.encoding_dim)
+
+    assert encoder is not None, "Invalid encoder name!"
     
     encoder.to(device)
     nli_model.to(device)
@@ -147,12 +149,15 @@ def main():
 
 
     loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(params=nli_model.parameters(), lr=args.optimizer_lr, weight_decay=args.weight_decay)
+    optimizer = torch.optim.SGD(params=nli_model.parameters(), lr=args.optimizer_lr)
 
     best_validation_accuracy = 0.0
 
     for epoch in range(args.max_epochs):
         print('Epoch:', epoch)
+        if epoch > 0:
+            optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] * args.lr_decay
+
         loss_batches = train_one_epoch(nli_model, train, optimizer, loss_fn, word2vec, args.batch_size, writer, epoch, device)
         print('Mean loss in epoch', np.mean(loss_batches))
         eval_score = evaluate_model(nli_model, valid, word2vec, args.batch_size, device)
