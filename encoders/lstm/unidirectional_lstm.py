@@ -19,6 +19,8 @@ class UnidirectionalLSTMEncoder(nn.Module):
         sentence_lengths = torch.tensor(true_sentence_lengths, dtype=torch.long, device='cpu')
         sorted_lengths, idx_sort = torch.sort(sentence_lengths, descending=True)
 
+        idx_sort = idx_sort.to(padded_batch_of_sentences.device)
+
         sorted_sentences = padded_batch_of_sentences.index_select(0, idx_sort)
 
         # pack sentences

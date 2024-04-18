@@ -2,6 +2,11 @@
 runs/
 SentEval/
 pretrained/glove.840B.300d.txt
+pretrained/
+tokenized/
+
+# Slurm run outputs
+slurm_*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -8,18 +8,17 @@ import torch.nn as nn
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-
 from utils.word_embeddings import get_word_embeddings, create_dictionary, get_wordvec
 from utils.utils import batch_data
 from utils.eval import evaluate_model
-from utils.snli_data import get_snli_data
+from utils.snli_data import check_and_load_or_save
 from heads.snli_model import SNLIClassifier
 from encoders.word_embeddings_mean import WordEmbeddingsMeanEncoder
 from encoders.lstm.bidirectional_lstm import BidirectionalLSTMEncoder
 from encoders.lstm.unidirectional_lstm import UnidirectionalLSTMEncoder
 
 
-def train_one_epoch(nli_model, train, optimizer, loss_fn, word2vec, batch_size, writer, epoch, tuple_input=True):
+def train_one_epoch(nli_model, train, optimizer, loss_fn, word2vec, batch_size, writer, epoch, device, tuple_input=True):
     nli_model.train()
 
     all_costs = []
@@ -38,13 +37,13 @@ def train_one_epoch(nli_model, train, optimizer, loss_fn, word2vec, batch_size, 
                                                        batch_data(sentence2, batch_size),\
                                                        batch_data(target, batch_size)), total=(len(sentence1) // batch_size)):
         if tuple_input:
-            s1_encoded = (torch.Tensor(np.array([get_word_embeddings(word2vec, s1) for s1 in s1_batch])), [len(s1) for s1 in s1_batch])
-            s2_encoded = (torch.Tensor(np.array([get_word_embeddings(word2vec, s2) for s2 in s2_batch])), [len(s1) for s1 in s1_batch])
+            s1_encoded = (torch.Tensor(np.array([get_word_embeddings(word2vec, s1) for s1 in s1_batch])).to(device), [len(s1) for s1 in s1_batch])
+            s2_encoded = (torch.Tensor(np.array([get_word_embeddings(word2vec, s2) for s2 in s2_batch])).to(device), [len(s1) for s1 in s1_batch])
         else:
-            s1_encoded = torch.Tensor(np.array([get_word_embeddings(word2vec, s1) for s1 in s1_batch]))
-            s2_encoded = torch.Tensor(np.array([get_word_embeddings(word2vec, s2) for s2 in s2_batch]))
+            s1_encoded = torch.Tensor(np.array([get_word_embeddings(word2vec, s1) for s1 in s1_batch])).to(device)
+            s2_encoded = torch.Tensor(np.array([get_word_embeddings(word2vec, s2) for s2 in s2_batch])).to(device)
 
-        tgt_batch = torch.Tensor(target_batch).long()
+        tgt_batch = torch.Tensor(target_batch).long().to(device)
 
         optimizer.zero_grad()
         output = nli_model.forward(s1_encoded, s2_encoded)
@@ -100,9 +99,19 @@ def main():
     run_name = f"runs/exp_{current_time}_{args.encoder}_{args.encoding_dim}"
     writer = SummaryWriter(run_name)
 
-    train = get_snli_data(split='train', sample=20_000)
-    valid = get_snli_data(split='validation')
-    test = get_snli_data(split='test')
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") 
+    print("using device", device)
+
+    if not os.path.exists('tokenized'):
+        os.makedirs('tokenized')
+    
+    train = check_and_load_or_save('train')
+    valid = check_and_load_or_save('validation')
+    test = check_and_load_or_save('test')
+    
+    print('Length of train data:', len(train))
+    print('Length of validation data:', len(valid))
+    print('Length of test data:', len(test))
 
     all_sentences = list(train['sentence1']) + list(train['sentence2']) +\
                     list(valid['sentence1']) + list(valid['sentence2']) +\
@@ -125,8 +134,17 @@ def main():
     elif args.encoder == 'bilstm_max':
         encoder = BidirectionalLSTMEncoder(pooling_type='max', encoding_lstm_dim=args.encoding_dim, batch_size=args.batch_size)
         nli_model = SNLIClassifier(encoder=encoder, embedding_dim=2*args.encoding_dim)
+    
+    encoder.to(device)
+    nli_model.to(device)
 
     print(encoder, nli_model)
+    try:
+        print("encoder device", next(encoder.parameters()).device)
+    except Exception:
+        pass
+    print("nli_model device", next(nli_model.parameters()).device)
+
 
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(params=nli_model.parameters(), lr=args.optimizer_lr, weight_decay=args.weight_decay)
@@ -135,9 +153,9 @@ def main():
 
     for epoch in range(args.max_epochs):
         print('Epoch:', epoch)
-        loss_batches = train_one_epoch(nli_model, train, optimizer, loss_fn, word2vec, args.batch_size, writer, epoch)
+        loss_batches = train_one_epoch(nli_model, train, optimizer, loss_fn, word2vec, args.batch_size, writer, epoch, device)
         print('Mean loss in epoch', np.mean(loss_batches))
-        eval_score = evaluate_model(nli_model, valid, word2vec, args.batch_size)
+        eval_score = evaluate_model(nli_model, valid, word2vec, args.batch_size, device)
         eval_accuracy = eval_score['accuracy']
         print('Validation accuracy', eval_accuracy)
         writer.add_scalar('validation accuracy', eval_accuracy, epoch)

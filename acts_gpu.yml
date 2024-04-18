@@ -1,0 +1,25 @@
+name: acts_gpu
+channel_priority: strict
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.11.5
+  - pip=23.3.1
+  - pytorch-cuda=11.8
+  - pytorch=2.1.0
+  - pip:
+    - pandas==2.1.1
+    - numpy==1.26.3
+    - datasets==2.18.0
+    - pytorch-lightning==2.1.0
+    - tensorboard==2.14.1
+    - tqdm>=4.62.3
+    - notebook>=6.4.5
+    - jupyterlab>=3.2.1
+    - matplotlib>=3.4.3
+    - seaborn>=0.11.2
+    - ipywidgets>=7.6.5
+    - scikit-learn==1.4.2
+    - nltk==3.8.1

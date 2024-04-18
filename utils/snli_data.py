@@ -1,3 +1,5 @@
+import os
+import pickle
 from tqdm import tqdm
 import string
 import nltk
@@ -40,3 +42,22 @@ def get_snli_data(split='train', sample=None):
     data['sentence2'] = tokenized
         
     return data[['sentence1', 'sentence2', 'target']].dropna()
+
+def save_data(data, file_path):
+    with open(file_path, 'wb') as f:
+        pickle.dump(data, f)
+
+def load_data(file_path):
+    with open(file_path, 'rb') as f:
+        return pickle.load(f)
+
+def check_and_load_or_save(split):
+    file_path = f'tokenized/{split}.pickle'
+    
+    if not os.path.exists(file_path):
+        data = get_snli_data(split)
+        save_data(data, file_path)
+    else:
+        data = load_data(file_path)
+    
+    return data

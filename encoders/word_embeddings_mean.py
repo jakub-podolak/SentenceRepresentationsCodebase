@@ -9,6 +9,6 @@ class WordEmbeddingsMeanEncoder(SentenceEncoder):
     def forward(self, sentences_length_tuple):
         x, sentence_lengths = sentences_length_tuple
         # x is of shape [batch_size, num_tokens, embedding_dimension]
-        sentence_lengths = torch.Tensor(sentence_lengths).unsqueeze(-1)
+        sentence_lengths = torch.Tensor(sentence_lengths).unsqueeze(-1).to(x.device)
 
         return x.sum(dim=1) / sentence_lengths
