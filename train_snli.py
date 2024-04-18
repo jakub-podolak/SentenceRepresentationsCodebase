@@ -83,7 +83,7 @@ def parse_option():
         "--optimizer_lr", type=float, default=0.1, help="initial learning rate"
     )
     parser.add_argument(
-        "--encoding_dim", type=int, default=256, help="lstm encoding dimension"
+        "--encoding_dim", type=int, default=2048, help="lstm encoding dimension"
     )
     parser.add_argument(
         "--lr_decay", type=float, default=0.99, help="lr decay"
