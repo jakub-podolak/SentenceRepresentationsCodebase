@@ -26,6 +26,7 @@ def get_snli_data(split='train', sample=None):
 
     if sample:
         print('sampling...')
+        sample = min(len(data), sample)
         data = data.sample(sample)
 
     # tokenize and lowercase the data
